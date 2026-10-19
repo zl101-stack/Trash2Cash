@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "627359844645",
+    "project_id": "trash2cash-1c6f4",
+    "storage_bucket": "trash2cash-1c6f4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:627359844645:android:993d9dd8f394d2d009f2cc",
+        "android_client_info": {
+          "package_name": "edu.uph.m24si2.trash2cash"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "627359844645-aq3u9ak99d3h4631mfgu9mrk7363ih6j.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAswQqlnMsWefHu1KyVK4bXaVIQMgmw71I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "627359844645-aq3u9ak99d3h4631mfgu9mrk7363ih6j.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,36 @@
+<resources>
+    <string name="app_name">Trash2Cash</string>
+    <string name="app_tagline">Buang Botol, Dapat Uang!</string>
+    <string name="app_slogan">Berawal dari Satu Botol,\nBerdampak untuk Bumi.</string>
+
+    <!-- Login -->
+    <string name="login_title">Masuk</string>
+    <string name="login_subtitle">Selamat datang kembali! Masuk untuk melanjutkan.</string>
+    <string name="hint_email">Alamat Email</string>
+    <string name="hint_password">Kata Sandi</string>
+    <string name="btn_login">Masuk</string>
+    <string name="forgot_password">Lupa Kata Sandi?</string>
+    <string name="no_account">Belum punya akun? </string>
+    <string name="register_now">Daftar Sekarang</string>
+
+    <!-- Register -->
+    <string name="register_title">Daftar Akun</string>
+    <string name="register_subtitle">Bergabung dan mulai kumpulkan botol untuk reward!</string>
+    <string name="hint_full_name">Nama Lengkap</string>
+    <string name="hint_phone">Nomor Telepon</string>
+    <string name="hint_confirm_password">Konfirmasi Kata Sandi</string>
+    <string name="btn_register">Daftar Sekarang</string>
+    <string name="already_have_account">Sudah punya akun? </string>
+    <string name="login_now">Masuk Sekarang</string>
+    <string name="terms_prefix">Dengan mendaftar, kamu menyetujui </string>
+    <string name="terms_link">Syarat &amp; Ketentuan</string>
+    <string name="terms_suffix"> kami.</string>
+
+    <!-- Common -->
+    <string name="or_divider">atau</string>
+    <string name="loading">Memuat…</string>
+    <string name="error_empty_field">Kolom ini tidak boleh kosong</string>
+    <string name="error_invalid_email">Format email tidak valid</string>
+    <string name="error_password_short">Kata sandi minimal 6 karakter</string>
+    <string name="error_password_mismatch">Kata sandi tidak cocok</string>
+</resources>

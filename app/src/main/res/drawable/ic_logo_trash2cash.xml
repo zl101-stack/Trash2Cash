@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Recycle / Trash2Cash logo icon -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="80dp"
+    android:height="80dp"
+    android:viewportWidth="80"
+    android:viewportHeight="80">
+
+    <!-- Outer circle background -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M40,8 A32,32 0 1,1 39.99,8 Z" />
+
+    <!-- Recycle arrows - arrow 1 (top) -->
+    <path
+        android:fillColor="#2E7D32"
+        android:pathData="M40,16 L34,26 L37.5,26 L37.5,34 L42.5,34 L42.5,26 L46,26 Z" />
+
+    <!-- Recycle arrows - arrow 2 (bottom-right) -->
+    <path
+        android:fillColor="#2E7D32"
+        android:pathData="M51.9,38.5 L58.4,38.5 L55.15,32.8 L43.5,53 L48,53 L51.9,38.5 Z" />
+
+    <!-- Recycle arrows - arrow 3 (bottom-left) -->
+    <path
+        android:fillColor="#2E7D32"
+        android:pathData="M28.1,38.5 L32,53 L36.5,53 L24.85,32.8 L21.6,38.5 Z" />
+
+    <!-- Center circle -->
+    <path
+        android:fillColor="#2E7D32"
+        android:pathData="M40,34 A6,6 0 1,1 39.99,34 Z" />
+</vector>

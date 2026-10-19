@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="56dp"
+    android:height="56dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Recycle symbol using Material Design path -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2z
+        M8.465,16.95l-1.41,-1.41 5.35,-5.35 -2.12,-2.12 5.66,0 0,5.66 -2.12,-2.12z
+        M13.065,15.535l-5.35,-5.35 2.12,-2.12 -5.66,0 0,5.66 2.12,-2.12z" />
+</vector>
