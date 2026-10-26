@@ -1,0 +1,506 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background"
+    android:orientation="vertical">
+
+    <!-- HEADER GREEN -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="180dp"
+        android:background="@drawable/bg_green_gradient">
+
+        <!-- Deco circles -->
+        <View android:layout_width="140dp" android:layout_height="140dp"
+            android:layout_gravity="top|end" android:layout_marginTop="-30dp"
+            android:layout_marginEnd="-30dp" android:alpha="0.1"
+            android:background="@drawable/bg_circle_light_green"/>
+        <View android:layout_width="80dp" android:layout_height="80dp"
+            android:layout_gravity="bottom|start" android:layout_marginStart="-20dp"
+            android:layout_marginBottom="-20dp" android:alpha="0.1"
+            android:background="@drawable/bg_circle_light_green"/>
+
+        <!-- Back -->
+        <ImageView
+            android:id="@+id/btnBack"
+            android:layout_width="36dp" android:layout_height="36dp"
+            android:layout_gravity="top|start"
+            android:layout_marginStart="16dp" android:layout_marginTop="48dp"
+            android:contentDescription="Kembali"
+            android:src="@drawable/ic_arrow_back"
+            android:tint="#FFFFFF"
+            android:clickable="true" android:focusable="true"/>
+
+        <!-- Title -->
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_gravity="top|center_horizontal"
+            android:layout_marginTop="52dp"
+            android:gravity="center"
+            android:text="Profil Saya"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold"/>
+
+        <!-- Avatar -->
+        <FrameLayout
+            android:layout_width="84dp" android:layout_height="84dp"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginBottom="-42dp">
+
+            <View android:layout_width="match_parent" android:layout_height="match_parent"
+                android:background="@drawable/bg_profil_avatar"/>
+
+            <ImageView
+                android:layout_width="50dp" android:layout_height="50dp"
+                android:layout_gravity="center"
+                android:contentDescription="avatar"
+                android:src="@drawable/ic_nav_profile"
+                android:tint="@color/green_primary"/>
+
+            <!-- Edit badge -->
+            <FrameLayout
+                android:id="@+id/btnEditAvatar"
+                android:layout_width="26dp" android:layout_height="26dp"
+                android:layout_gravity="bottom|end"
+                android:background="@drawable/bg_btn_green_primary"
+                android:clickable="true" android:focusable="true">
+                <ImageView
+                    android:layout_width="14dp" android:layout_height="14dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="edit"
+                    android:src="@drawable/ic_edit"
+                    android:tint="#FFFFFF"/>
+            </FrameLayout>
+        </FrameLayout>
+    </FrameLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="false">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingTop="52dp"
+            android:paddingBottom="24dp">
+
+            <!-- NAMA & EMAIL -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvNamaProfil"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Nama Pengguna"
+                    android:textColor="@color/text_primary"
+                    android:textSize="20sp"
+                    android:textStyle="bold"/>
+
+                <TextView
+                    android:id="@+id/tvEmailProfil"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="email@example.com"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp"/>
+
+                <!-- Member badge -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_green_badge"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="12dp"
+                    android:paddingTop="4dp"
+                    android:paddingEnd="12dp"
+                    android:paddingBottom="4dp">
+                    <ImageView
+                        android:layout_width="14dp" android:layout_height="14dp"
+                        android:layout_marginEnd="4dp"
+                        android:contentDescription="leaf"
+                        android:src="@drawable/ic_leaf"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Member Aktif"
+                        android:textColor="@color/green_primary"
+                        android:textSize="12sp"
+                        android:textStyle="bold"/>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- STATS CARD -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="20dp"
+                android:layout_marginEnd="16dp"
+                app:cardBackgroundColor="@color/surface_white"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="3dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
+                        <TextView
+                            android:id="@+id/tvStatBotol"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0"
+                            android:textColor="@color/green_primary"
+                            android:textSize="22sp"
+                            android:textStyle="bold"/>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:text="Botol"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="12sp"/>
+                    </LinearLayout>
+
+                    <View android:layout_width="1dp" android:layout_height="match_parent"
+                        android:background="@color/divider"/>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
+                        <TextView
+                            android:id="@+id/tvStatSaldo"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Rp 0"
+                            android:textColor="@color/green_primary"
+                            android:textSize="18sp"
+                            android:textStyle="bold"/>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:text="Saldo"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="12sp"/>
+                    </LinearLayout>
+
+                    <View android:layout_width="1dp" android:layout_height="match_parent"
+                        android:background="@color/divider"/>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
+                        <TextView
+                            android:id="@+id/tvStatKg"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0 g"
+                            android:textColor="@color/green_primary"
+                            android:textSize="18sp"
+                            android:textStyle="bold"/>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:text="Plastik"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="12sp"/>
+                    </LinearLayout>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- SECTION: Akun -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="8dp"
+                android:text="Akun"
+                android:textColor="@color/text_hint"
+                android:textSize="12sp"
+                android:textAllCaps="true"
+                android:letterSpacing="0.08"/>
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                app:cardBackgroundColor="@color/surface_white"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="3dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <!-- Edit Profil -->
+                    <LinearLayout
+                        android:id="@+id/menuEditProfil"
+                        android:layout_width="match_parent"
+                        android:layout_height="58dp"
+                        android:clickable="true" android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingStart="16dp" android:paddingEnd="16dp">
+
+                        <FrameLayout
+                            android:layout_width="36dp" android:layout_height="36dp"
+                            android:background="@drawable/bg_nav_active_indicator">
+                            <ImageView android:layout_width="20dp" android:layout_height="20dp"
+                                android:layout_gravity="center"
+                                android:contentDescription="edit"
+                                android:src="@drawable/ic_edit"/>
+                        </FrameLayout>
+
+                        <TextView
+                            android:layout_width="0dp" android:layout_height="wrap_content"
+                            android:layout_weight="1" android:layout_marginStart="14dp"
+                            android:text="Edit Profil"
+                            android:textColor="@color/text_primary"
+                            android:textSize="14sp"/>
+
+                        <ImageView android:layout_width="16dp" android:layout_height="16dp"
+                            android:contentDescription="arrow"
+                            android:src="@drawable/ic_chevron_right"/>
+                    </LinearLayout>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp"
+                        android:layout_marginStart="66dp"
+                        android:background="@color/divider"/>
+
+                    <!-- Keamanan -->
+                    <LinearLayout
+                        android:id="@+id/menuKeamanan"
+                        android:layout_width="match_parent"
+                        android:layout_height="58dp"
+                        android:clickable="true" android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingStart="16dp" android:paddingEnd="16dp">
+
+                        <FrameLayout
+                            android:layout_width="36dp" android:layout_height="36dp"
+                            android:background="@drawable/bg_nav_active_indicator">
+                            <ImageView android:layout_width="20dp" android:layout_height="20dp"
+                                android:layout_gravity="center"
+                                android:contentDescription="keamanan"
+                                android:src="@drawable/ic_privacy"/>
+                        </FrameLayout>
+
+                        <TextView
+                            android:layout_width="0dp" android:layout_height="wrap_content"
+                            android:layout_weight="1" android:layout_marginStart="14dp"
+                            android:text="Keamanan &amp; Privasi"
+                            android:textColor="@color/text_primary"
+                            android:textSize="14sp"/>
+
+                        <ImageView android:layout_width="16dp" android:layout_height="16dp"
+                            android:contentDescription="arrow"
+                            android:src="@drawable/ic_chevron_right"/>
+                    </LinearLayout>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp"
+                        android:layout_marginStart="66dp"
+                        android:background="@color/divider"/>
+
+                    <!-- Notifikasi -->
+                    <LinearLayout
+                        android:id="@+id/menuNotifikasi"
+                        android:layout_width="match_parent"
+                        android:layout_height="58dp"
+                        android:clickable="true" android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingStart="16dp" android:paddingEnd="16dp">
+
+                        <FrameLayout
+                            android:layout_width="36dp" android:layout_height="36dp"
+                            android:background="@drawable/bg_nav_active_indicator">
+                            <ImageView android:layout_width="20dp" android:layout_height="20dp"
+                                android:layout_gravity="center"
+                                android:contentDescription="notif"
+                                android:src="@drawable/ic_notification"
+                                android:tint="@color/green_primary"/>
+                        </FrameLayout>
+
+                        <TextView
+                            android:layout_width="0dp" android:layout_height="wrap_content"
+                            android:layout_weight="1" android:layout_marginStart="14dp"
+                            android:text="Notifikasi"
+                            android:textColor="@color/text_primary"
+                            android:textSize="14sp"/>
+
+                        <androidx.appcompat.widget.SwitchCompat
+                            android:id="@+id/switchNotif"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:checked="true"
+                            app:thumbTint="@color/green_primary"
+                            app:trackTint="@color/green_surface_medium"/>
+                    </LinearLayout>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- SECTION: Lainnya -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="8dp"
+                android:text="Lainnya"
+                android:textColor="@color/text_hint"
+                android:textSize="12sp"
+                android:textAllCaps="true"
+                android:letterSpacing="0.08"/>
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                app:cardBackgroundColor="@color/surface_white"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="3dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <!-- Bantuan -->
+                    <LinearLayout
+                        android:id="@+id/menuBantuan"
+                        android:layout_width="match_parent"
+                        android:layout_height="58dp"
+                        android:clickable="true" android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingStart="16dp" android:paddingEnd="16dp">
+                        <FrameLayout
+                            android:layout_width="36dp" android:layout_height="36dp"
+                            android:background="@drawable/bg_nav_active_indicator">
+                            <ImageView android:layout_width="20dp" android:layout_height="20dp"
+                                android:layout_gravity="center"
+                                android:contentDescription="bantuan"
+                                android:src="@drawable/ic_help"/>
+                        </FrameLayout>
+                        <TextView
+                            android:layout_width="0dp" android:layout_height="wrap_content"
+                            android:layout_weight="1" android:layout_marginStart="14dp"
+                            android:text="Pusat Bantuan"
+                            android:textColor="@color/text_primary" android:textSize="14sp"/>
+                        <ImageView android:layout_width="16dp" android:layout_height="16dp"
+                            android:contentDescription="arrow"
+                            android:src="@drawable/ic_chevron_right"/>
+                    </LinearLayout>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp"
+                        android:layout_marginStart="66dp" android:background="@color/divider"/>
+
+                    <!-- Tentang -->
+                    <LinearLayout
+                        android:id="@+id/menuTentang"
+                        android:layout_width="match_parent"
+                        android:layout_height="58dp"
+                        android:clickable="true" android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingStart="16dp" android:paddingEnd="16dp">
+                        <FrameLayout
+                            android:layout_width="36dp" android:layout_height="36dp"
+                            android:background="@drawable/bg_nav_active_indicator">
+                            <ImageView android:layout_width="20dp" android:layout_height="20dp"
+                                android:layout_gravity="center"
+                                android:contentDescription="tentang"
+                                android:src="@drawable/ic_info"/>
+                        </FrameLayout>
+                        <LinearLayout
+                            android:layout_width="0dp" android:layout_height="wrap_content"
+                            android:layout_weight="1" android:layout_marginStart="14dp"
+                            android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:text="Tentang Aplikasi"
+                                android:textColor="@color/text_primary" android:textSize="14sp"/>
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:text="Versi 1.0.0"
+                                android:textColor="@color/text_hint" android:textSize="11sp"/>
+                        </LinearLayout>
+                        <ImageView android:layout_width="16dp" android:layout_height="16dp"
+                            android:contentDescription="arrow"
+                            android:src="@drawable/ic_chevron_right"/>
+                    </LinearLayout>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- LOGOUT BUTTON -->
+            <LinearLayout
+                android:id="@+id/btnLogout"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginEnd="16dp"
+                android:background="@drawable/bg_activity_item"
+                android:clickable="true" android:focusable="true"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="20dp" android:layout_height="20dp"
+                    android:layout_marginEnd="10dp"
+                    android:contentDescription="logout"
+                    android:src="@drawable/ic_logout"/>
+
+                <TextView
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="Keluar Akun"
+                    android:textColor="@color/error_red"
+                    android:textSize="15sp"
+                    android:textStyle="bold"/>
+            </LinearLayout>
+
+            <!-- Version footer -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginTop="16dp"
+                android:gravity="center"
+                android:text="Trash2Cash v1.0.0 · © 2024"
+                android:textColor="@color/text_hint"
+                android:textSize="11sp"/>
+
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

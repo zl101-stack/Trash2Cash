@@ -1,12 +1,23 @@
-# Add project specific R8 rules here.
 # AGP will combine all keep rule files in src/main/keepRules to pass to R8
-#
-# For more details, see
-#   https://d.android.com/r/tools/r8/keep-rules
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Firebase Auth
+-keepattributes Signature
+-keepattributes *Annotation*
+-keepattributes EnclosingMethod
+-keep class com.google.firebase.** { *; }
+-keep class com.google.android.gms.** { *; }
+-dontwarn com.google.firebase.**
+-dontwarn com.google.android.gms.**
+
+# Firebase Realtime Database - preserve model field names
+-keepclassmembers class edu.uph.m24si2.trash2cash.** {
+    public <init>();
+    public <fields>;
+}
+
+# Kotlin Coroutines
+-dontwarn kotlinx.coroutines.**
+-keep class kotlinx.coroutines.** { *; }
+
+# Keep Trash2Cash data classes
+-keep class edu.uph.m24si2.trash2cash.RiwayatItem { *; }

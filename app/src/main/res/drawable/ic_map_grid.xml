@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="160dp"
+    android:viewportWidth="200"
+    android:viewportHeight="160">
+    <!-- Map grid lines -->
+    <path android:strokeColor="#C8E6C9" android:strokeWidth="1"
+        android:pathData="M0,40 L200,40 M0,80 L200,80 M0,120 L200,120
+                         M40,0 L40,160 M80,0 L80,160 M120,0 L120,160 M160,0 L160,160"/>
+    <!-- Roads -->
+    <path android:strokeColor="#A5D6A7" android:strokeWidth="4"
+        android:pathData="M0,80 L200,80 M100,0 L100,160"/>
+    <path android:strokeColor="#A5D6A7" android:strokeWidth="2.5"
+        android:pathData="M0,40 L80,40 L80,0 M160,160 L160,80 L200,80"/>
+    <!-- Building blocks -->
+    <path android:fillColor="#C8E6C9" android:pathData="M10,10 H35 V30 H10 Z"/>
+    <path android:fillColor="#C8E6C9" android:pathData="M45,10 H70 V30 H45 Z"/>
+    <path android:fillColor="#B2DFDB" android:pathData="M10,50 H70 V70 H10 Z"/>
+    <path android:fillColor="#C8E6C9" android:pathData="M110,10 H140 V35 H110 Z"/>
+    <path android:fillColor="#DCEDC8" android:pathData="M150,10 H190 V35 H150 Z"/>
+    <path android:fillColor="#C8E6C9" android:pathData="M110,90 H145 V120 H110 Z"/>
+    <path android:fillColor="#B2DFDB" android:pathData="M155,90 H190 V120 H155 Z"/>
+    <path android:fillColor="#DCEDC8" android:pathData="M10,90 H35 V120 H10 Z"/>
+    <path android:fillColor="#C8E6C9" android:pathData="M45,90 H70 V120 H45 Z"/>
+    <!-- Pin Lokasi Mesin 1 (Lippo Plaza) -->
+    <path android:fillColor="#1B5E20"
+        android:pathData="M100,55 C96,55 93,58 93,62 C93,68 100,75 100,75 C100,75 107,68 107,62 C107,58 104,55 100,55Z"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M96,62 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"/>
+    <!-- Pin Lokasi Mesin 2 -->
+    <path android:fillColor="#2E7D32"
+        android:pathData="M50,100 C47,100 45,102 45,105 C45,109 50,114 50,114 C50,114 55,109 55,105 C55,102 53,100 50,100Z"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M47,105 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0"/>
+    <!-- Pin Lokasi Mesin 3 -->
+    <path android:fillColor="#388E3C"
+        android:pathData="M155,55 C152,55 150,57 150,60 C150,64 155,69 155,69 C155,69 160,64 160,60 C160,57 158,55 155,55Z"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M152,60 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0"/>
+</vector>

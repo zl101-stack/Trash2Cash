@@ -3,10 +3,10 @@ package edu.uph.m24si2.trash2cash
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -23,25 +23,27 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var auth: FirebaseAuth
 
-    // Header views
+    // Header
     private lateinit var tvGreeting: TextView
+    private lateinit var btnNotification: View
+    private lateinit var btnProfile: View
 
-    // Saldo views
+    // Saldo card
     private lateinit var tvSaldo: TextView
     private lateinit var btnTarikSaldo: LinearLayout
 
-    // Stats views
+    // Stats
     private lateinit var tvJumlahBotol: TextView
     private lateinit var tvBeratPlastik: TextView
     private lateinit var tvTotalReward: TextView
 
-    // Target bulanan views
+    // Target bulanan
     private lateinit var progressTarget: ProgressBar
     private lateinit var tvProgressPersen: TextView
     private lateinit var tvProgressLabel: TextView
     private lateinit var tvMotivasi: TextView
 
-    // Aktivitas views
+    // Aktivitas terbaru
     private lateinit var tvAktivitas1Judul: TextView
     private lateinit var tvAktivitas1Desc: TextView
     private lateinit var tvAktivitas1Waktu: TextView
@@ -52,20 +54,18 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvAktivitas3Desc: TextView
     private lateinit var tvAktivitas3Waktu: TextView
 
-    // Navigation views
+    // Navigasi
     private lateinit var navBeranda: LinearLayout
     private lateinit var navMesin: LinearLayout
     private lateinit var navRiwayat: LinearLayout
     private lateinit var navWallet: LinearLayout
     private lateinit var navProfil: LinearLayout
 
-    // Other
+    // Shortcut
     private lateinit var tvLihatSemuaMesin: TextView
     private lateinit var tvLihatSemuaAktivitas: TextView
-    private lateinit var btnNotification: View
-    private lateinit var btnProfile: View
+    private lateinit var cardMesinTerdekat: View
 
-    // Data konstanta
     private val TARGET_BOTOL = 20
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -73,169 +73,159 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
         }
 
         auth = Firebase.auth
-
-        // Jika belum login, kembali ke LoginActivity
-        if (auth.currentUser == null) {
-            goToLogin()
-            return
-        }
+        if (auth.currentUser == null) { goToLogin(); return }
 
         initViews()
         setupListeners()
         loadUserData()
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Refresh saldo setiap kali kembali dari activity lain
+        if (auth.currentUser != null) loadUserData()
+    }
+
     private fun initViews() {
-        tvGreeting           = findViewById(R.id.tvGreeting)
-        tvSaldo              = findViewById(R.id.tvSaldo)
-        btnTarikSaldo        = findViewById(R.id.btnTarikSaldo)
-        tvJumlahBotol        = findViewById(R.id.tvJumlahBotol)
-        tvBeratPlastik       = findViewById(R.id.tvBeratPlastik)
-        tvTotalReward        = findViewById(R.id.tvTotalReward)
-        progressTarget       = findViewById(R.id.progressTarget)
-        tvProgressPersen     = findViewById(R.id.tvProgressPersen)
-        tvProgressLabel      = findViewById(R.id.tvProgressLabel)
-        tvMotivasi           = findViewById(R.id.tvMotivasi)
-        tvAktivitas1Judul    = findViewById(R.id.tvAktivitas1Judul)
-        tvAktivitas1Desc     = findViewById(R.id.tvAktivitas1Desc)
-        tvAktivitas1Waktu    = findViewById(R.id.tvAktivitas1Waktu)
-        tvAktivitas2Judul    = findViewById(R.id.tvAktivitas2Judul)
-        tvAktivitas2Desc     = findViewById(R.id.tvAktivitas2Desc)
-        tvAktivitas2Waktu    = findViewById(R.id.tvAktivitas2Waktu)
-        tvAktivitas3Judul    = findViewById(R.id.tvAktivitas3Judul)
-        tvAktivitas3Desc     = findViewById(R.id.tvAktivitas3Desc)
-        tvAktivitas3Waktu    = findViewById(R.id.tvAktivitas3Waktu)
-        navBeranda           = findViewById(R.id.navBeranda)
-        navMesin             = findViewById(R.id.navMesin)
-        navRiwayat           = findViewById(R.id.navRiwayat)
-        navWallet            = findViewById(R.id.navWallet)
-        navProfil            = findViewById(R.id.navProfil)
-        tvLihatSemuaMesin    = findViewById(R.id.tvLihatSemuaMesin)
-        tvLihatSemuaAktivitas= findViewById(R.id.tvLihatSemuaAktivitas)
-        btnNotification      = findViewById(R.id.btnNotification)
-        btnProfile           = findViewById(R.id.btnProfile)
+        tvGreeting            = findViewById(R.id.tvGreeting)
+        btnNotification       = findViewById(R.id.btnNotification)
+        btnProfile            = findViewById(R.id.btnProfile)
+        tvSaldo               = findViewById(R.id.tvSaldo)
+        btnTarikSaldo         = findViewById(R.id.btnTarikSaldo)
+        tvJumlahBotol         = findViewById(R.id.tvJumlahBotol)
+        tvBeratPlastik        = findViewById(R.id.tvBeratPlastik)
+        tvTotalReward         = findViewById(R.id.tvTotalReward)
+        progressTarget        = findViewById(R.id.progressTarget)
+        tvProgressPersen      = findViewById(R.id.tvProgressPersen)
+        tvProgressLabel       = findViewById(R.id.tvProgressLabel)
+        tvMotivasi            = findViewById(R.id.tvMotivasi)
+        tvAktivitas1Judul     = findViewById(R.id.tvAktivitas1Judul)
+        tvAktivitas1Desc      = findViewById(R.id.tvAktivitas1Desc)
+        tvAktivitas1Waktu     = findViewById(R.id.tvAktivitas1Waktu)
+        tvAktivitas2Judul     = findViewById(R.id.tvAktivitas2Judul)
+        tvAktivitas2Desc      = findViewById(R.id.tvAktivitas2Desc)
+        tvAktivitas2Waktu     = findViewById(R.id.tvAktivitas2Waktu)
+        tvAktivitas3Judul     = findViewById(R.id.tvAktivitas3Judul)
+        tvAktivitas3Desc      = findViewById(R.id.tvAktivitas3Desc)
+        tvAktivitas3Waktu     = findViewById(R.id.tvAktivitas3Waktu)
+        navBeranda            = findViewById(R.id.navBeranda)
+        navMesin              = findViewById(R.id.navMesin)
+        navRiwayat            = findViewById(R.id.navRiwayat)
+        navWallet             = findViewById(R.id.navWallet)
+        navProfil             = findViewById(R.id.navProfil)
+        tvLihatSemuaMesin     = findViewById(R.id.tvLihatSemuaMesin)
+        tvLihatSemuaAktivitas = findViewById(R.id.tvLihatSemuaAktivitas)
+        cardMesinTerdekat     = findViewById(R.id.cardMesinTerdekat)
     }
 
     private fun setupListeners() {
-
         // Tarik Saldo
         btnTarikSaldo.setOnClickListener {
-            Toast.makeText(this, "Fitur Tarik Saldo segera hadir!", Toast.LENGTH_SHORT).show()
+            startActivity(Intent(this, TarikSaldoActivity::class.java))
         }
 
         // Notifikasi
         btnNotification.setOnClickListener {
-            Toast.makeText(this, "Notifikasi", Toast.LENGTH_SHORT).show()
+            startActivity(Intent(this, RiwayatActivity::class.java))
         }
 
-        // Profil header
+        // Avatar profil di header
         btnProfile.setOnClickListener {
-            activateNav(navProfil)
-            Toast.makeText(this, "Halaman Profil segera hadir!", Toast.LENGTH_SHORT).show()
+            startActivity(Intent(this, ProfilActivity::class.java))
         }
 
         // Lihat semua mesin
         tvLihatSemuaMesin.setOnClickListener {
+            startActivity(Intent(this, LokasiMesinActivity::class.java))
             activateNav(navMesin)
-            Toast.makeText(this, "Halaman Mesin segera hadir!", Toast.LENGTH_SHORT).show()
+        }
+
+        // Card mesin terdekat
+        cardMesinTerdekat.setOnClickListener {
+            startActivity(Intent(this, LokasiMesinActivity::class.java))
+            activateNav(navMesin)
         }
 
         // Lihat semua aktivitas
         tvLihatSemuaAktivitas.setOnClickListener {
+            startActivity(Intent(this, RiwayatActivity::class.java))
             activateNav(navRiwayat)
-            Toast.makeText(this, "Halaman Riwayat segera hadir!", Toast.LENGTH_SHORT).show()
         }
 
-        // Bottom navigation
-        navBeranda.setOnClickListener { activateNav(navBeranda) }
+        // Bottom Navigation
+        navBeranda.setOnClickListener {
+            activateNav(navBeranda)
+            // Sudah di beranda, scroll ke atas
+        }
 
         navMesin.setOnClickListener {
             activateNav(navMesin)
-            Toast.makeText(this, "Halaman Mesin segera hadir!", Toast.LENGTH_SHORT).show()
+            startActivity(Intent(this, LokasiMesinActivity::class.java))
         }
 
         navRiwayat.setOnClickListener {
             activateNav(navRiwayat)
-            Toast.makeText(this, "Halaman Riwayat segera hadir!", Toast.LENGTH_SHORT).show()
+            startActivity(Intent(this, RiwayatActivity::class.java))
         }
 
         navWallet.setOnClickListener {
             activateNav(navWallet)
-            Toast.makeText(this, "Halaman Wallet segera hadir!", Toast.LENGTH_SHORT).show()
+            startActivity(Intent(this, WalletActivity::class.java))
         }
 
         navProfil.setOnClickListener {
             activateNav(navProfil)
-            showLogoutDialog()
+            startActivity(Intent(this, ProfilActivity::class.java))
         }
     }
 
     private fun loadUserData() {
         val user = auth.currentUser ?: return
 
-        // Tampilkan nama user dari Firebase Auth
+        // Nama sapaan
         val displayName = user.displayName
-        val email = user.email ?: ""
+        val email       = user.email ?: ""
         val namaAwal = when {
             !displayName.isNullOrBlank() -> displayName.split(" ").first()
-            email.isNotBlank() -> email.substringBefore("@")
-            else -> "Pengguna"
+            email.isNotBlank()           -> email.substringBefore("@")
+            else                         -> "Pengguna"
         }
         tvGreeting.text = "Halo, $namaAwal! 👋"
 
-        // Load data dari Firebase Realtime Database
-        val uid = user.uid
-        val dbRef = FirebaseDatabase.getInstance().getReference("users").child(uid)
+        val uid   = user.uid
+        val dbRef = FirebaseDatabase.getInstance().getReference("users/$uid")
 
         dbRef.addValueEventListener(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                if (!snapshot.exists()) {
-                    // User baru — inisialisasi data default
-                    initDefaultUserData(uid)
-                    return
-                }
+            override fun onDataChange(snap: DataSnapshot) {
+                if (!snap.exists()) { initDefaultUserData(uid); return }
 
-                // Ambil data saldo
-                val saldo = snapshot.child("saldo").getValue(Long::class.java) ?: 0L
-                tvSaldo.text = "Rp ${formatRupiah(saldo)}"
+                val saldo       = snap.child("saldo").getValue(Long::class.java) ?: 0L
+                val jumlahBotol = snap.child("jumlahBotol").getValue(Int::class.java) ?: 0
+                val beratPlastik= snap.child("beratPlastik").getValue(Int::class.java) ?: 0
+                val totalReward = snap.child("totalReward").getValue(Long::class.java) ?: 0L
 
-                // Ambil statistik
-                val jumlahBotol = snapshot.child("jumlahBotol").getValue(Int::class.java) ?: 0
-                val beratPlastik = snapshot.child("beratPlastik").getValue(Int::class.java) ?: 0
-                val totalReward = snapshot.child("totalReward").getValue(Long::class.java) ?: 0L
-
+                tvSaldo.text       = "Rp ${fmt(saldo)}"
                 tvJumlahBotol.text = jumlahBotol.toString()
-                tvBeratPlastik.text = "${formatBerat(beratPlastik)} g"
-                tvTotalReward.text = "Rp ${formatRupiah(totalReward)}"
+                tvBeratPlastik.text= "${fmtBerat(beratPlastik)} g"
+                tvTotalReward.text = "Rp ${fmt(totalReward)}"
 
-                // Hitung target bulanan
                 updateTargetProgress(jumlahBotol)
-
-                // Load aktivitas terbaru
                 loadAktivitasTerbaru(uid)
             }
 
-            override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(
-                    this@MainActivity,
-                    "Gagal memuat data: ${error.message}",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
+            override fun onCancelled(error: DatabaseError) {}
         })
     }
 
     private fun initDefaultUserData(uid: String) {
-        val dbRef = FirebaseDatabase.getInstance().getReference("users").child(uid)
         val user = auth.currentUser
-
-        val defaultData = mapOf(
+        val data = mapOf(
             "nama"         to (user?.displayName ?: ""),
             "email"        to (user?.email ?: ""),
             "saldo"        to 0L,
@@ -244,78 +234,51 @@ class MainActivity : AppCompatActivity() {
             "totalReward"  to 0L,
             "createdAt"    to System.currentTimeMillis()
         )
+        FirebaseDatabase.getInstance().getReference("users/$uid").setValue(data)
 
-        dbRef.setValue(defaultData)
-
-        // Tampilkan nilai default di UI
-        tvSaldo.text = "Rp 0"
+        tvSaldo.text       = "Rp 0"
         tvJumlahBotol.text = "0"
-        tvBeratPlastik.text = "0 g"
+        tvBeratPlastik.text= "0 g"
         tvTotalReward.text = "Rp 0"
         updateTargetProgress(0)
     }
 
     private fun loadAktivitasTerbaru(uid: String) {
-        val aktivitasRef = FirebaseDatabase.getInstance()
-            .getReference("users")
-            .child(uid)
-            .child("aktivitas")
-
-        aktivitasRef.orderByChild("timestamp")
+        FirebaseDatabase.getInstance()
+            .getReference("users/$uid/aktivitas")
+            .orderByChild("timestamp")
             .limitToLast(3)
             .addValueEventListener(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    if (!snapshot.exists()) {
-                        // Tampilkan data placeholder default
-                        setAktivitasPlaceholder()
-                        return
-                    }
+                override fun onDataChange(snap: DataSnapshot) {
+                    if (!snap.exists()) { setAktivitasPlaceholder(); return }
 
-                    // Ambil aktivitas dan urutkan dari terbaru
                     val list = mutableListOf<DataSnapshot>()
-                    snapshot.children.forEach { list.add(0, it) }
+                    snap.children.forEach { list.add(0, it) }
 
-                    // Isi item 1
-                    list.getOrNull(0)?.let { item ->
-                        tvAktivitas1Judul.text = item.child("judul").getValue(String::class.java) ?: "+Rp0"
-                        tvAktivitas1Desc.text  = item.child("deskripsi").getValue(String::class.java) ?: ""
-                        tvAktivitas1Waktu.text = item.child("waktu").getValue(String::class.java) ?: ""
-                        // Warna merah jika ditolak
-                        val status1 = item.child("status").getValue(String::class.java) ?: "diterima"
-                        tvAktivitas1Judul.setTextColor(
-                            if (status1 == "ditolak") getColor(R.color.error_red)
-                            else getColor(R.color.green_primary)
-                        )
+                    fun bind(
+                        ds: DataSnapshot?,
+                        tvJudul: TextView, tvDesc: TextView, tvWaktu: TextView
+                    ) {
+                        ds ?: return
+                        val status = ds.child("status").getValue(String::class.java) ?: "diterima"
+                        tvJudul.text = ds.child("judul").getValue(String::class.java) ?: ""
+                        tvDesc.text  = ds.child("deskripsi").getValue(String::class.java) ?: ""
+                        tvWaktu.text = ds.child("waktu").getValue(String::class.java) ?: ""
+                        tvJudul.setTextColor(getColor(
+                            when (status) {
+                                "ditolak"   -> R.color.error_red
+                                "penarikan" -> android.R.color.holo_orange_dark
+                                else        -> R.color.green_primary
+                            }
+                        ))
                     }
 
-                    // Isi item 2
-                    list.getOrNull(1)?.let { item ->
-                        tvAktivitas2Judul.text = item.child("judul").getValue(String::class.java) ?: "+Rp0"
-                        tvAktivitas2Desc.text  = item.child("deskripsi").getValue(String::class.java) ?: ""
-                        tvAktivitas2Waktu.text = item.child("waktu").getValue(String::class.java) ?: ""
-                        val status2 = item.child("status").getValue(String::class.java) ?: "diterima"
-                        tvAktivitas2Judul.setTextColor(
-                            if (status2 == "ditolak") getColor(R.color.error_red)
-                            else getColor(R.color.green_primary)
-                        )
-                    }
-
-                    // Isi item 3
-                    list.getOrNull(2)?.let { item ->
-                        tvAktivitas3Judul.text = item.child("judul").getValue(String::class.java) ?: "+Rp0"
-                        tvAktivitas3Desc.text  = item.child("deskripsi").getValue(String::class.java) ?: ""
-                        tvAktivitas3Waktu.text = item.child("waktu").getValue(String::class.java) ?: ""
-                        val status3 = item.child("status").getValue(String::class.java) ?: "diterima"
-                        tvAktivitas3Judul.setTextColor(
-                            if (status3 == "ditolak") getColor(R.color.error_red)
-                            else getColor(R.color.green_primary)
-                        )
-                    }
+                    bind(list.getOrNull(0), tvAktivitas1Judul, tvAktivitas1Desc, tvAktivitas1Waktu)
+                    bind(list.getOrNull(1), tvAktivitas2Judul, tvAktivitas2Desc, tvAktivitas2Waktu)
+                    bind(list.getOrNull(2), tvAktivitas3Judul, tvAktivitas3Desc, tvAktivitas3Waktu)
                 }
 
-                override fun onCancelled(error: DatabaseError) {
-                    setAktivitasPlaceholder()
-                }
+                override fun onCancelled(error: DatabaseError) { setAktivitasPlaceholder() }
             })
     }
 
@@ -329,72 +292,56 @@ class MainActivity : AppCompatActivity() {
         tvAktivitas3Judul.text = "+Rp1.000"
         tvAktivitas3Desc.text  = "Botol PET diterima"
         tvAktivitas3Waktu.text = "2 hari lalu 09:10"
+        listOf(tvAktivitas1Judul, tvAktivitas2Judul, tvAktivitas3Judul).forEach {
+            it.setTextColor(getColor(R.color.green_primary))
+        }
     }
 
     private fun updateTargetProgress(jumlahBotol: Int) {
         val persen = ((jumlahBotol.toFloat() / TARGET_BOTOL) * 100).toInt().coerceIn(0, 100)
-        progressTarget.progress = persen
-        tvProgressPersen.text = "$persen%"
-        tvProgressLabel.text = "$jumlahBotol dari $TARGET_BOTOL botol"
-
+        progressTarget.progress  = persen
+        tvProgressPersen.text    = "$persen%"
+        tvProgressLabel.text     = "$jumlahBotol dari $TARGET_BOTOL botol"
         tvMotivasi.text = when {
             persen >= 100 -> "Luar biasa! Target bulan ini sudah tercapai! 🎉"
             persen >= 75  -> "Hampir sampai! Tinggal sedikit lagi!"
             persen >= 50  -> "Setengah jalan! Terus semangat kumpulkan botol!"
-            persen >= 25  -> "Bagus! Terus kumpulkan botol untuk dampak yang lebih besar!"
+            persen >= 25  -> "Bagus! Terus kumpulkan botol untuk dampak lebih besar!"
             else          -> "Yuk mulai kumpulkan botol untuk bumi yang lebih bersih!"
         }
     }
 
     private fun activateNav(selected: LinearLayout) {
         val allNavs = listOf(navBeranda, navMesin, navRiwayat, navWallet, navProfil)
-        val allNavTexts = listOf(
-            navBeranda.getChildAt(1) as TextView,
-            navMesin.getChildAt(1) as TextView,
-            navRiwayat.getChildAt(1) as TextView,
-            navWallet.getChildAt(1) as TextView,
-            navProfil.getChildAt(1) as TextView
-        )
-
-        allNavs.forEachIndexed { index, nav ->
-            if (nav == selected) {
-                nav.setBackgroundResource(R.drawable.bg_nav_active_indicator)
-                allNavTexts[index].setTextColor(getColor(R.color.green_primary))
-                allNavTexts[index].typeface = android.graphics.Typeface.DEFAULT_BOLD
-            } else {
-                nav.setBackgroundResource(0)
-                allNavTexts[index].setTextColor(getColor(R.color.text_hint))
-                allNavTexts[index].typeface = android.graphics.Typeface.DEFAULT
-            }
+        allNavs.forEach { nav ->
+            val isActive = nav == selected
+            nav.setBackgroundResource(
+                if (isActive) R.drawable.bg_nav_active_indicator else 0
+            )
+            val tvLabel = nav.getChildAt(1) as? TextView ?: return@forEach
+            val ivIcon  = nav.getChildAt(0) as? ImageView ?: return@forEach
+            tvLabel.setTextColor(getColor(
+                if (isActive) R.color.green_primary else R.color.text_hint
+            ))
+            tvLabel.typeface = if (isActive)
+                android.graphics.Typeface.DEFAULT_BOLD
+            else
+                android.graphics.Typeface.DEFAULT
+            ivIcon.setColorFilter(
+                getColor(if (isActive) R.color.green_primary else R.color.text_hint)
+            )
         }
     }
 
-    private fun showLogoutDialog() {
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("Keluar Akun")
-            .setMessage("Apakah kamu yakin ingin keluar?")
-            .setPositiveButton("Keluar") { _, _ ->
-                auth.signOut()
-                goToLogin()
-            }
-            .setNegativeButton("Batal", null)
-            .show()
-    }
-
     private fun goToLogin() {
-        val intent = Intent(this, LoginActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        startActivity(intent)
+        startActivity(
+            Intent(this, LoginActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
+        )
         finish()
     }
 
-    // Format angka ke Rupiah: 25500 -> "25.500"
-    private fun formatRupiah(amount: Long): String {
-        return String.format("%,d", amount).replace(',', '.')
-    }
-
-    // Format berat gram: 1200 -> "1.200"
-    private fun formatBerat(gram: Int): String {
-        return String.format("%,d", gram).replace(',', '.')
-    }
+    private fun fmt(n: Long)  = String.format("%,d", n).replace(',', '.')
+    private fun fmtBerat(n: Int) = String.format("%,d", n).replace(',', '.')
 }
