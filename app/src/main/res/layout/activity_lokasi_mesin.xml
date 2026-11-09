@@ -268,13 +268,15 @@
         </FrameLayout>
     </FrameLayout>
 
-    <!-- DAFTAR MESIN -->
+    <!-- DAFTAR MESIN — diisi dinamis dari Firestore -->
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp">
 
+        <!-- containerMesin diisi oleh LokasiMesinActivity.renderMesinList() -->
         <LinearLayout
+            android:id="@+id/containerMesin"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
@@ -282,10 +284,11 @@
             android:paddingEnd="16dp"
             android:paddingBottom="16dp">
 
-            <!-- Mesin 1: Lippo Plaza Medan -->
-            <androidx.cardview.widget.CardView
+            <!-- Placeholder loading — hilang saat data Firestore masuk -->
+            <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+<<<<<<< Updated upstream
                 android:layout_marginBottom="10dp"
                 app:cardBackgroundColor="@color/surface_white"
                 app:cardCornerRadius="16dp"
@@ -589,6 +592,13 @@
                     </LinearLayout>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
+=======
+                android:gravity="center"
+                android:padding="32dp"
+                android:text="Memuat daftar mesin…"
+                android:textColor="@color/text_hint"
+                android:textSize="14sp" />
+>>>>>>> Stashed changes
 
         </LinearLayout>
     </ScrollView>

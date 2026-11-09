@@ -11,39 +11,33 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.ktx.auth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
-import com.google.firebase.ktx.Firebase
 
 class MainActivity : AppCompatActivity() {
-
-    private lateinit var auth: FirebaseAuth
 
     // Header
     private lateinit var tvGreeting: TextView
     private lateinit var btnNotification: View
     private lateinit var btnProfile: View
 
-    // Saldo card
+    // Saldo card  — data dari RTDB
     private lateinit var tvSaldo: TextView
     private lateinit var btnTarikSaldo: LinearLayout
 
-    // Stats
+    // Stats row  — data dari RTDB
     private lateinit var tvJumlahBotol: TextView
     private lateinit var tvBeratPlastik: TextView
     private lateinit var tvTotalReward: TextView
 
-    // Target bulanan
+    // Target bulanan  — dihitung dari RTDB
     private lateinit var progressTarget: ProgressBar
     private lateinit var tvProgressPersen: TextView
     private lateinit var tvProgressLabel: TextView
     private lateinit var tvMotivasi: TextView
 
-    // Aktivitas terbaru
+    // Aktivitas terbaru  — data dari RTDB
     private lateinit var tvAktivitas1Judul: TextView
     private lateinit var tvAktivitas1Desc: TextView
     private lateinit var tvAktivitas1Waktu: TextView
@@ -54,17 +48,21 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvAktivitas3Desc: TextView
     private lateinit var tvAktivitas3Waktu: TextView
 
-    // Navigasi
+    // Bottom navigation
     private lateinit var navBeranda: LinearLayout
     private lateinit var navMesin: LinearLayout
     private lateinit var navRiwayat: LinearLayout
     private lateinit var navWallet: LinearLayout
     private lateinit var navProfil: LinearLayout
 
-    // Shortcut
+    // Shortcut links
     private lateinit var tvLihatSemuaMesin: TextView
     private lateinit var tvLihatSemuaAktivitas: TextView
     private lateinit var cardMesinTerdekat: View
+
+    // Listener RTDB — disimpan agar bisa dilepas saat destroy
+    private var rtdbUserListener: ValueEventListener? = null
+    private var rtdbAktivitasListener: ValueEventListener? = null
 
     private val TARGET_BOTOL = 20
 
@@ -78,18 +76,24 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
-        auth = Firebase.auth
-        if (auth.currentUser == null) { goToLogin(); return }
+        if (FirebaseManager.currentUser == null) { goToLogin(); return }
 
         initViews()
         setupListeners()
-        loadUserData()
+        loadNamaFromFirestore()   // Firestore: profil statis
+        listenRtdbStats()         // RTDB: saldo + stats live
+        listenRtdbAktivitas()     // RTDB: aktivitas botol live
     }
 
-    override fun onResume() {
-        super.onResume()
-        // Refresh saldo setiap kali kembali dari activity lain
-        if (auth.currentUser != null) loadUserData()
+    override fun onDestroy() {
+        super.onDestroy()
+        // Lepas listener RTDB supaya tidak memory leak
+        rtdbUserListener?.let {
+            FirebaseManager.rtdbUserRef().removeEventListener(it)
+        }
+        rtdbAktivitasListener?.let {
+            FirebaseManager.rtdbAktivitasRef().removeEventListener(it)
+        }
     }
 
     private fun initViews() {
@@ -125,172 +129,154 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
-        // Tarik Saldo
         btnTarikSaldo.setOnClickListener {
             startActivity(Intent(this, TarikSaldoActivity::class.java))
         }
-
-        // Notifikasi
         btnNotification.setOnClickListener {
             startActivity(Intent(this, RiwayatActivity::class.java))
         }
-
-        // Avatar profil di header
         btnProfile.setOnClickListener {
             startActivity(Intent(this, ProfilActivity::class.java))
         }
-
-        // Lihat semua mesin
         tvLihatSemuaMesin.setOnClickListener {
             startActivity(Intent(this, LokasiMesinActivity::class.java))
             activateNav(navMesin)
         }
-
-        // Card mesin terdekat
         cardMesinTerdekat.setOnClickListener {
             startActivity(Intent(this, LokasiMesinActivity::class.java))
             activateNav(navMesin)
         }
-
-        // Lihat semua aktivitas
         tvLihatSemuaAktivitas.setOnClickListener {
             startActivity(Intent(this, RiwayatActivity::class.java))
             activateNav(navRiwayat)
         }
-
-        // Bottom Navigation
-        navBeranda.setOnClickListener {
-            activateNav(navBeranda)
-            // Sudah di beranda, scroll ke atas
-        }
-
-        navMesin.setOnClickListener {
+        navBeranda.setOnClickListener  { activateNav(navBeranda) }
+        navMesin.setOnClickListener    {
             activateNav(navMesin)
             startActivity(Intent(this, LokasiMesinActivity::class.java))
         }
-
-        navRiwayat.setOnClickListener {
+        navRiwayat.setOnClickListener  {
             activateNav(navRiwayat)
             startActivity(Intent(this, RiwayatActivity::class.java))
         }
-
-        navWallet.setOnClickListener {
+        navWallet.setOnClickListener   {
             activateNav(navWallet)
             startActivity(Intent(this, WalletActivity::class.java))
         }
-
-        navProfil.setOnClickListener {
+        navProfil.setOnClickListener   {
             activateNav(navProfil)
             startActivity(Intent(this, ProfilActivity::class.java))
         }
     }
 
-    private fun loadUserData() {
-        val user = auth.currentUser ?: return
+    // ── Firestore: ambil nama profil (sekali saja) ───────────────────
+    private fun loadNamaFromFirestore() {
+        val user = FirebaseManager.currentUser ?: return
 
-        // Nama sapaan
-        val displayName = user.displayName
-        val email       = user.email ?: ""
-        val namaAwal = when {
-            !displayName.isNullOrBlank() -> displayName.split(" ").first()
-            email.isNotBlank()           -> email.substringBefore("@")
-            else                         -> "Pengguna"
+        // Fallback dari Firebase Auth dulu supaya cepat tampil
+        val fallbackNama = when {
+            !user.displayName.isNullOrBlank() -> user.displayName!!.split(" ").first()
+            !user.email.isNullOrBlank()       -> user.email!!.substringBefore("@")
+            else                              -> "Pengguna"
         }
-        tvGreeting.text = "Halo, $namaAwal! 👋"
+        tvGreeting.text = "Halo, $fallbackNama! 👋"
 
-        val uid   = user.uid
-        val dbRef = FirebaseDatabase.getInstance().getReference("users/$uid")
+        // Ambil nama dari Firestore (lebih akurat jika user sudah edit profil)
+        FirebaseManager.fsUserDoc().get()
+            .addOnSuccessListener { doc ->
+                if (doc.exists()) {
+                    val nama = doc.getString("nama")?.trim()
+                    if (!nama.isNullOrBlank()) {
+                        val namaAwal = nama.split(" ").first()
+                        tvGreeting.text = "Halo, $namaAwal! 👋"
+                    }
+                } else {
+                    // Dokumen belum ada → buat sekarang (user lama sebelum migrasi)
+                    val profile = FirebaseManager.defaultUserProfile(
+                        nama   = user.displayName ?: "",
+                        email  = user.email ?: ""
+                    )
+                    FirebaseManager.fsUserDoc().set(profile)
 
-        dbRef.addValueEventListener(object : ValueEventListener {
+                    // Pastikan RTDB juga ada
+                    FirebaseManager.rtdbUserRef().get().addOnSuccessListener { snap ->
+                        if (!snap.exists()) {
+                            FirebaseManager.rtdbUserRef().setValue(
+                                FirebaseManager.defaultUserRtdb(
+                                    nama  = user.displayName ?: "",
+                                    email = user.email ?: ""
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+    }
+
+    // ── RTDB: listen perubahan saldo & statistik secara realtime ────
+    private fun listenRtdbStats() {
+        rtdbUserListener = object : ValueEventListener {
             override fun onDataChange(snap: DataSnapshot) {
-                if (!snap.exists()) { initDefaultUserData(uid); return }
+                val saldo        = (snap.child("saldo").value as? Number)?.toLong() ?: 0L
+                val jumlahBotol  = (snap.child("jumlahBotol").value as? Number)?.toInt() ?: 0
+                val beratPlastik = (snap.child("beratPlastik").value as? Number)?.toInt() ?: 0
+                val totalReward  = (snap.child("totalReward").value as? Number)?.toLong() ?: 0L
 
-                val saldo       = snap.child("saldo").getValue(Long::class.java) ?: 0L
-                val jumlahBotol = snap.child("jumlahBotol").getValue(Int::class.java) ?: 0
-                val beratPlastik= snap.child("beratPlastik").getValue(Int::class.java) ?: 0
-                val totalReward = snap.child("totalReward").getValue(Long::class.java) ?: 0L
-
-                tvSaldo.text       = "Rp ${fmt(saldo)}"
-                tvJumlahBotol.text = jumlahBotol.toString()
-                tvBeratPlastik.text= "${fmtBerat(beratPlastik)} g"
-                tvTotalReward.text = "Rp ${fmt(totalReward)}"
+                tvSaldo.text        = "Rp ${FirebaseManager.formatRupiah(saldo)}"
+                tvJumlahBotol.text  = jumlahBotol.toString()
+                tvBeratPlastik.text = "${FirebaseManager.formatBerat(beratPlastik)} g"
+                tvTotalReward.text  = "Rp ${FirebaseManager.formatRupiah(totalReward)}"
 
                 updateTargetProgress(jumlahBotol)
-                loadAktivitasTerbaru(uid)
             }
-
             override fun onCancelled(error: DatabaseError) {}
-        })
+        }
+        FirebaseManager.rtdbUserRef().addValueEventListener(rtdbUserListener!!)
     }
 
-    private fun initDefaultUserData(uid: String) {
-        val user = auth.currentUser
-        val data = mapOf(
-            "nama"         to (user?.displayName ?: ""),
-            "email"        to (user?.email ?: ""),
-            "saldo"        to 0L,
-            "jumlahBotol"  to 0,
-            "beratPlastik" to 0,
-            "totalReward"  to 0L,
-            "createdAt"    to System.currentTimeMillis()
-        )
-        FirebaseDatabase.getInstance().getReference("users/$uid").setValue(data)
+    // ── RTDB: listen 3 aktivitas terbaru dari ESP32 ─────────────────
+    private fun listenRtdbAktivitas() {
+        rtdbAktivitasListener = object : ValueEventListener {
+            override fun onDataChange(snap: DataSnapshot) {
+                if (!snap.exists()) { setAktivitasPlaceholder(); return }
 
-        tvSaldo.text       = "Rp 0"
-        tvJumlahBotol.text = "0"
-        tvBeratPlastik.text= "0 g"
-        tvTotalReward.text = "Rp 0"
-        updateTargetProgress(0)
-    }
+                val list = mutableListOf<DataSnapshot>()
+                snap.children.forEach { list.add(0, it) }
 
-    private fun loadAktivitasTerbaru(uid: String) {
-        FirebaseDatabase.getInstance()
-            .getReference("users/$uid/aktivitas")
-            .orderByChild("timestamp")
-            .limitToLast(3)
-            .addValueEventListener(object : ValueEventListener {
-                override fun onDataChange(snap: DataSnapshot) {
-                    if (!snap.exists()) { setAktivitasPlaceholder(); return }
-
-                    val list = mutableListOf<DataSnapshot>()
-                    snap.children.forEach { list.add(0, it) }
-
-                    fun bind(
-                        ds: DataSnapshot?,
-                        tvJudul: TextView, tvDesc: TextView, tvWaktu: TextView
-                    ) {
-                        ds ?: return
-                        val status = ds.child("status").getValue(String::class.java) ?: "diterima"
-                        tvJudul.text = ds.child("judul").getValue(String::class.java) ?: ""
-                        tvDesc.text  = ds.child("deskripsi").getValue(String::class.java) ?: ""
-                        tvWaktu.text = ds.child("waktu").getValue(String::class.java) ?: ""
-                        tvJudul.setTextColor(getColor(
-                            when (status) {
-                                "ditolak"   -> R.color.error_red
-                                "penarikan" -> android.R.color.holo_orange_dark
-                                else        -> R.color.green_primary
-                            }
-                        ))
-                    }
-
-                    bind(list.getOrNull(0), tvAktivitas1Judul, tvAktivitas1Desc, tvAktivitas1Waktu)
-                    bind(list.getOrNull(1), tvAktivitas2Judul, tvAktivitas2Desc, tvAktivitas2Waktu)
-                    bind(list.getOrNull(2), tvAktivitas3Judul, tvAktivitas3Desc, tvAktivitas3Waktu)
+                fun bind(
+                    ds: DataSnapshot?,
+                    tvJudul: TextView, tvDesc: TextView, tvWaktu: TextView
+                ) {
+                    ds ?: return
+                    val status = ds.child("status").getValue(String::class.java) ?: "diterima"
+                    tvJudul.text = ds.child("judul").getValue(String::class.java) ?: ""
+                    tvDesc.text  = ds.child("deskripsi").getValue(String::class.java) ?: ""
+                    tvWaktu.text = ds.child("waktu").getValue(String::class.java) ?: ""
+                    tvJudul.setTextColor(getColor(when (status) {
+                        "ditolak"   -> R.color.error_red
+                        "penarikan" -> android.R.color.holo_orange_dark
+                        else        -> R.color.green_primary
+                    }))
                 }
 
-                override fun onCancelled(error: DatabaseError) { setAktivitasPlaceholder() }
-            })
+                bind(list.getOrNull(0), tvAktivitas1Judul, tvAktivitas1Desc, tvAktivitas1Waktu)
+                bind(list.getOrNull(1), tvAktivitas2Judul, tvAktivitas2Desc, tvAktivitas2Waktu)
+                bind(list.getOrNull(2), tvAktivitas3Judul, tvAktivitas3Desc, tvAktivitas3Waktu)
+            }
+            override fun onCancelled(error: DatabaseError) { setAktivitasPlaceholder() }
+        }
+        FirebaseManager.rtdbAktivitasRef()
+            .orderByChild("timestamp")
+            .limitToLast(3)
+            .addValueEventListener(rtdbAktivitasListener!!)
     }
 
     private fun setAktivitasPlaceholder() {
-        tvAktivitas1Judul.text = "+Rp500"
-        tvAktivitas1Desc.text  = "Botol PET diterima"
+        tvAktivitas1Judul.text = "+Rp500";  tvAktivitas1Desc.text = "Botol PET diterima"
         tvAktivitas1Waktu.text = "Hari ini 14:32"
-        tvAktivitas2Judul.text = "+Rp500"
-        tvAktivitas2Desc.text  = "Botol PET diterima"
+        tvAktivitas2Judul.text = "+Rp500";  tvAktivitas2Desc.text = "Botol PET diterima"
         tvAktivitas2Waktu.text = "Kemarin 17:45"
-        tvAktivitas3Judul.text = "+Rp1.000"
-        tvAktivitas3Desc.text  = "Botol PET diterima"
+        tvAktivitas3Judul.text = "+Rp1.000"; tvAktivitas3Desc.text = "Botol PET diterima"
         tvAktivitas3Waktu.text = "2 hari lalu 09:10"
         listOf(tvAktivitas1Judul, tvAktivitas2Judul, tvAktivitas3Judul).forEach {
             it.setTextColor(getColor(R.color.green_primary))
@@ -299,9 +285,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateTargetProgress(jumlahBotol: Int) {
         val persen = ((jumlahBotol.toFloat() / TARGET_BOTOL) * 100).toInt().coerceIn(0, 100)
-        progressTarget.progress  = persen
-        tvProgressPersen.text    = "$persen%"
-        tvProgressLabel.text     = "$jumlahBotol dari $TARGET_BOTOL botol"
+        progressTarget.progress = persen
+        tvProgressPersen.text   = "$persen%"
+        tvProgressLabel.text    = "$jumlahBotol dari $TARGET_BOTOL botol"
         tvMotivasi.text = when {
             persen >= 100 -> "Luar biasa! Target bulan ini sudah tercapai! 🎉"
             persen >= 75  -> "Hampir sampai! Tinggal sedikit lagi!"
@@ -315,33 +301,22 @@ class MainActivity : AppCompatActivity() {
         val allNavs = listOf(navBeranda, navMesin, navRiwayat, navWallet, navProfil)
         allNavs.forEach { nav ->
             val isActive = nav == selected
-            nav.setBackgroundResource(
-                if (isActive) R.drawable.bg_nav_active_indicator else 0
-            )
-            val tvLabel = nav.getChildAt(1) as? TextView ?: return@forEach
-            val ivIcon  = nav.getChildAt(0) as? ImageView ?: return@forEach
-            tvLabel.setTextColor(getColor(
-                if (isActive) R.color.green_primary else R.color.text_hint
-            ))
-            tvLabel.typeface = if (isActive)
-                android.graphics.Typeface.DEFAULT_BOLD
-            else
-                android.graphics.Typeface.DEFAULT
-            ivIcon.setColorFilter(
+            nav.setBackgroundResource(if (isActive) R.drawable.bg_nav_active_indicator else 0)
+            (nav.getChildAt(1) as? TextView)?.apply {
+                setTextColor(getColor(if (isActive) R.color.green_primary else R.color.text_hint))
+                typeface = if (isActive) android.graphics.Typeface.DEFAULT_BOLD
+                           else android.graphics.Typeface.DEFAULT
+            }
+            (nav.getChildAt(0) as? ImageView)?.setColorFilter(
                 getColor(if (isActive) R.color.green_primary else R.color.text_hint)
             )
         }
     }
 
     private fun goToLogin() {
-        startActivity(
-            Intent(this, LoginActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            }
-        )
+        startActivity(Intent(this, LoginActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        })
         finish()
     }
-
-    private fun fmt(n: Long)  = String.format("%,d", n).replace(',', '.')
-    private fun fmtBerat(n: Int) = String.format("%,d", n).replace(',', '.')
 }

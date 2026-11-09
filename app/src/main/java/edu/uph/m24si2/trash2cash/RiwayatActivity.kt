@@ -12,21 +12,19 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.google.firebase.auth.ktx.auth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
-import com.google.firebase.ktx.Firebase
+import com.google.firebase.firestore.Query
 
-data class RiwayatItem(
-    val judul: String,
-    val deskripsi: String,
-    val waktu: String,
-    val status: String,
-    val timestamp: Long
-)
-
+/**
+ * RiwayatActivity — gabungkan dua sumber data:
+ *
+ * 1. RTDB  → aktivitas botol (diterima / ditolak) — ditulis ESP32
+ * 2. Firestore → riwayat penarikan saldo — ditulis TarikSaldoActivity
+ *
+ * Keduanya digabung, diurutkan by timestamp terbaru, lalu dirender.
+ */
 class RiwayatActivity : AppCompatActivity() {
 
     private lateinit var tabSemua: TextView
@@ -40,9 +38,15 @@ class RiwayatActivity : AppCompatActivity() {
     private lateinit var tvTotalDitolak: TextView
     private lateinit var tvTotalPenarikan: TextView
 
-    private var allItems = listOf<RiwayatItem>()
+    private var allItems  = listOf< RiwayatItem>()
     private var activeTab = "semua"
-    private val auth = Firebase.auth
+
+    // RTDB listener
+    private var rtdbListener: ValueEventListener? = null
+
+    // Cache masing-masing sumber
+    private var itemsRtdb       = listOf<RiwayatItem>()
+    private var itemsFirestore  = listOf<RiwayatItem>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,24 +56,30 @@ class RiwayatActivity : AppCompatActivity() {
             v.setPadding(0, insets.getInsets(WindowInsetsCompat.Type.systemBars()).top, 0, 0)
             insets
         }
-
         initViews()
         setupTabs()
-        loadRiwayat()
         findViewById<View>(R.id.btnBack).setOnClickListener { finish() }
+
+        loadFromFirestore()  // Firestore: riwayat penarikan (sekali)
+        listenFromRtdb()     // RTDB: aktivitas botol (realtime)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        rtdbListener?.let { FirebaseManager.rtdbAktivitasRef().removeEventListener(it) }
     }
 
     private fun initViews() {
-        tabSemua          = findViewById(R.id.tabSemua)
-        tabDiterima       = findViewById(R.id.tabDiterima)
-        tabDitolak        = findViewById(R.id.tabDitolak)
-        containerRiwayat  = findViewById(R.id.containerRiwayat)
-        scrollRiwayat     = findViewById(R.id.scrollRiwayat)
-        layoutEmpty       = findViewById(R.id.layoutEmpty)
-        progressLoading   = findViewById(R.id.progressLoading)
-        tvTotalDiterima   = findViewById(R.id.tvTotalDiterima)
-        tvTotalDitolak    = findViewById(R.id.tvTotalDitolak)
-        tvTotalPenarikan  = findViewById(R.id.tvTotalPenarikan)
+        tabSemua         = findViewById(R.id.tabSemua)
+        tabDiterima      = findViewById(R.id.tabDiterima)
+        tabDitolak       = findViewById(R.id.tabDitolak)
+        containerRiwayat = findViewById(R.id.containerRiwayat)
+        scrollRiwayat    = findViewById(R.id.scrollRiwayat)
+        layoutEmpty      = findViewById(R.id.layoutEmpty)
+        progressLoading  = findViewById(R.id.progressLoading)
+        tvTotalDiterima  = findViewById(R.id.tvTotalDiterima)
+        tvTotalDitolak   = findViewById(R.id.tvTotalDitolak)
+        tvTotalPenarikan = findViewById(R.id.tvTotalPenarikan)
     }
 
     private fun setupTabs() {
@@ -78,9 +88,77 @@ class RiwayatActivity : AppCompatActivity() {
         tabDitolak.setOnClickListener  { setActiveTab("ditolak") }
     }
 
+    // ── RTDB: listen aktivitas botol dari ESP32 ──────────────────────
+    private fun listenFromRtdb() {
+        rtdbListener = object : ValueEventListener {
+            override fun onDataChange(snap: DataSnapshot) {
+                val list = mutableListOf<RiwayatItem>()
+                snap.children.forEach { child ->
+                    list.add(RiwayatItem(
+                        judul     = child.child("judul").getValue(String::class.java) ?: "",
+                        deskripsi = child.child("deskripsi").getValue(String::class.java) ?: "",
+                        waktu     = child.child("waktu").getValue(String::class.java) ?: "",
+                        status    = child.child("status").getValue(String::class.java) ?: "diterima",
+                        timestamp = child.child("timestamp").getValue(Long::class.java) ?: 0L
+                    ))
+                }
+                // Urutkan terbaru dulu
+                itemsRtdb = list.sortedByDescending { it.timestamp }
+                mergeAndRender()
+            }
+            override fun onCancelled(e: DatabaseError) { mergeAndRender() }
+        }
+        FirebaseManager.rtdbAktivitasRef()
+            .orderByChild("timestamp")
+            .addValueEventListener(rtdbListener!!)
+    }
+
+    // ── Firestore: ambil riwayat penarikan ───────────────────────────
+    private fun loadFromFirestore() {
+        FirebaseManager.fsWithdrawalsCol()
+            .orderBy("timestamp", Query.Direction.DESCENDING)
+            .get()
+            .addOnSuccessListener { snap ->
+                val list = snap.documents.mapNotNull { doc ->
+                    val nominal   = doc.getLong("nominal") ?: return@mapNotNull null
+                    val ewallet   = doc.getString("ewallet") ?: ""
+                    val nomor     = doc.getString("nomor") ?: ""
+                    RiwayatItem(
+                        judul     = "-Rp ${FirebaseManager.formatRupiah(nominal)}",
+                        deskripsi = "Penarikan ke $ewallet ($nomor)",
+                        waktu     = doc.getString("waktu") ?: "",
+                        status    = "penarikan",
+                        timestamp = doc.getLong("timestamp") ?: 0L
+                    )
+                }
+                itemsFirestore = list
+                mergeAndRender()
+            }
+            .addOnFailureListener { mergeAndRender() }
+    }
+
+    // ── Gabungkan RTDB + Firestore, urutkan by timestamp ────────────
+    private fun mergeAndRender() {
+        progressLoading.visibility = View.GONE
+
+        val merged = (itemsRtdb + itemsFirestore)
+            .sortedByDescending { it.timestamp }
+
+        // Jika keduanya kosong, gunakan dummy supaya tampilan tidak kosong
+        allItems = merged.ifEmpty { getDummyData() }
+
+        updateSummary()
+        renderList()
+    }
+
+    private fun updateSummary() {
+        tvTotalDiterima.text  = allItems.count { it.status == "diterima" }.toString()
+        tvTotalDitolak.text   = allItems.count { it.status == "ditolak" }.toString()
+        tvTotalPenarikan.text = allItems.count { it.status == "penarikan" }.toString()
+    }
+
     private fun setActiveTab(tab: String) {
         activeTab = tab
-        // Update tab UI
         listOf(tabSemua, tabDiterima, tabDitolak).forEach {
             it.setBackgroundResource(R.drawable.bg_tab_inactive)
             it.setTextColor(getColor(R.color.text_secondary))
@@ -93,47 +171,6 @@ class RiwayatActivity : AppCompatActivity() {
         activeView.setBackgroundResource(R.drawable.bg_tab_active)
         activeView.setTextColor(getColor(R.color.surface_white))
         renderList()
-    }
-
-    private fun loadRiwayat() {
-        val uid = auth.currentUser?.uid ?: return
-        val ref = FirebaseDatabase.getInstance()
-            .getReference("users/$uid/aktivitas")
-
-        ref.orderByChild("timestamp")
-            .addValueEventListener(object : ValueEventListener {
-                override fun onDataChange(snap: DataSnapshot) {
-                    progressLoading.visibility = View.GONE
-                    val list = mutableListOf<RiwayatItem>()
-                    snap.children.forEach { child ->
-                        list.add(0, RiwayatItem(
-                            judul      = child.child("judul").getValue(String::class.java) ?: "",
-                            deskripsi  = child.child("deskripsi").getValue(String::class.java) ?: "",
-                            waktu      = child.child("waktu").getValue(String::class.java) ?: "",
-                            status     = child.child("status").getValue(String::class.java) ?: "diterima",
-                            timestamp  = child.child("timestamp").getValue(Long::class.java) ?: 0L
-                        ))
-                    }
-
-                    // Gunakan dummy data jika kosong (untuk preview)
-                    allItems = if (list.isEmpty()) getDummyData() else list
-                    updateSummary()
-                    renderList()
-                }
-
-                override fun onCancelled(e: DatabaseError) {
-                    progressLoading.visibility = View.GONE
-                    allItems = getDummyData()
-                    updateSummary()
-                    renderList()
-                }
-            })
-    }
-
-    private fun updateSummary() {
-        tvTotalDiterima.text  = allItems.count { it.status == "diterima" }.toString()
-        tvTotalDitolak.text   = allItems.count { it.status == "ditolak" }.toString()
-        tvTotalPenarikan.text = allItems.count { it.status == "penarikan" }.toString()
     }
 
     private fun renderList() {
@@ -156,13 +193,12 @@ class RiwayatActivity : AppCompatActivity() {
 
         val inflater = LayoutInflater.from(this)
         filtered.forEach { item ->
-            val view = inflater.inflate(R.layout.item_riwayat, containerRiwayat, false)
-
-            val tvJudul      = view.findViewById<TextView>(R.id.tvJudul)
-            val tvDeskripsi  = view.findViewById<TextView>(R.id.tvDeskripsi)
-            val tvWaktu      = view.findViewById<TextView>(R.id.tvWaktu)
+            val view          = inflater.inflate(R.layout.item_riwayat, containerRiwayat, false)
+            val tvJudul       = view.findViewById<TextView>(R.id.tvJudul)
+            val tvDeskripsi   = view.findViewById<TextView>(R.id.tvDeskripsi)
+            val tvWaktu       = view.findViewById<TextView>(R.id.tvWaktu)
             val iconContainer = view.findViewById<FrameLayout>(R.id.iconContainer)
-            val ivIcon       = view.findViewById<ImageView>(R.id.ivIcon)
+            val ivIcon        = view.findViewById<ImageView>(R.id.ivIcon)
 
             tvJudul.text     = item.judul
             tvDeskripsi.text = item.deskripsi
@@ -191,11 +227,10 @@ class RiwayatActivity : AppCompatActivity() {
     }
 
     private fun getDummyData() = listOf(
-        RiwayatItem("+Rp500",         "Botol PET diterima",         "Hari ini 14:32",    "diterima",  System.currentTimeMillis()),
-        RiwayatItem("+Rp500",         "Botol PET diterima",         "Hari ini 13:10",    "diterima",  System.currentTimeMillis() - 5400000),
-        RiwayatItem("+Rp500",         "Botol PET diterima",         "Kemarin 17:45",     "diterima",  System.currentTimeMillis() - 59400000),
-        RiwayatItem("-Rp10.000",      "Penarikan ke GoPay",         "12 Des 2024 09:21", "penarikan", System.currentTimeMillis() - 172800000),
-        RiwayatItem("Ditolak",        "Bukan botol plastik",        "Kemarin 16:30",     "ditolak",   System.currentTimeMillis() - 64800000),
-        RiwayatItem("+Rp500",         "Botol PET diterima",         "12 Des 2024 10:15", "diterima",  System.currentTimeMillis() - 180000000)
+        RiwayatItem("+Rp500",    "Botol PET diterima",   "Hari ini 14:32",    "diterima",  System.currentTimeMillis()),
+        RiwayatItem("+Rp500",    "Botol PET diterima",   "Hari ini 13:10",    "diterima",  System.currentTimeMillis() - 5_400_000),
+        RiwayatItem("-Rp10.000", "Penarikan ke GoPay",   "12 Des 2024 09:21", "penarikan", System.currentTimeMillis() - 172_800_000),
+        RiwayatItem("Ditolak",   "Bukan botol plastik",  "Kemarin 16:30",     "ditolak",   System.currentTimeMillis() - 64_800_000),
+        RiwayatItem("+Rp500",    "Botol PET diterima",   "12 Des 2024 10:15", "diterima",  System.currentTimeMillis() - 180_000_000)
     )
 }

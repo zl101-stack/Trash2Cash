@@ -11,12 +11,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.google.firebase.auth.ktx.auth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
-import com.google.firebase.ktx.Firebase
 
 class TarikSaldoActivity : AppCompatActivity() {
 
@@ -34,8 +31,10 @@ class TarikSaldoActivity : AppCompatActivity() {
     private lateinit var btnShopeepay: LinearLayout
 
     private var selectedEwallet = "DANA"
-    private var saldoTersedia = 0L
-    private val auth = Firebase.auth
+    private var saldoTersedia   = 0L
+
+    // RTDB listener untuk saldo live
+    private var saldoListener: ValueEventListener? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,10 +44,14 @@ class TarikSaldoActivity : AppCompatActivity() {
             v.setPadding(0, insets.getInsets(WindowInsetsCompat.Type.systemBars()).top, 0, 0)
             insets
         }
-
         initViews()
-        loadSaldo()
+        listenSaldoRtdb()   // RTDB: saldo live
         setupListeners()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        saldoListener?.let { FirebaseManager.rtdbSaldoRef().removeEventListener(it) }
     }
 
     private fun initViews() {
@@ -66,44 +69,104 @@ class TarikSaldoActivity : AppCompatActivity() {
         btnShopeepay    = findViewById(R.id.btnShopeepay)
     }
 
-    private fun loadSaldo() {
-        val uid = auth.currentUser?.uid ?: return
-        FirebaseDatabase.getInstance().getReference("users/$uid/saldo")
-            .addListenerForSingleValueEvent(object : ValueEventListener {
-                override fun onDataChange(snap: DataSnapshot) {
-                    saldoTersedia = snap.getValue(Long::class.java) ?: 0L
-                    tvSaldoTersedia.text = "Rp ${formatRupiah(saldoTersedia)}"
-                }
-                override fun onCancelled(e: DatabaseError) {}
-            })
+    // ── RTDB: listen saldo secara realtime ───────────────────────────
+    private fun listenSaldoRtdb() {
+        saldoListener = object : ValueEventListener {
+            override fun onDataChange(snap: DataSnapshot) {
+                saldoTersedia = (snap.value as? Number)?.toLong() ?: 0L
+                tvSaldoTersedia.text = "Rp ${FirebaseManager.formatRupiah(saldoTersedia)}"
+            }
+            override fun onCancelled(e: DatabaseError) {}
+        }
+        FirebaseManager.rtdbSaldoRef().addValueEventListener(saldoListener!!)
     }
 
     private fun setupListeners() {
         btnBack.setOnClickListener { finish() }
 
-        // E-wallet selection
+        // Pilih e-wallet
         val ewallets = mapOf(
             btnDana to "DANA", btnOvo to "OVO",
             btnGopay to "GoPay", btnShopeepay to "ShopeePay"
         )
         ewallets.forEach { (btn, name) ->
-            btn.setOnClickListener {
-                selectedEwallet = name
-                updateEwalletUI(btn)
-            }
+            btn.setOnClickListener { selectedEwallet = name; updateEwalletUI(btn) }
         }
 
-        // Chip nominal
-        val chips = mapOf(chip10k to 10000L, chip25k to 25000L, chip50k to 50200L)
-        chips.forEach { (chip, amount) ->
+        // Chip nominal cepat
+        mapOf(chip10k to 10_000L, chip25k to 25_000L, chip50k to 50_000L).forEach { (chip, amount) ->
             chip.setOnClickListener {
                 etNominal.setText(amount.toString())
                 updateChipUI(chip)
             }
         }
 
-        // Konfirmasi
         btnKonfirmasi.setOnClickListener { processWithdraw() }
+    }
+
+    private fun processWithdraw() {
+        val nomor      = etNomorAkun.text.toString().trim()
+        val nominalStr = etNominal.text.toString().trim().replace(".", "").replace(",", "")
+        val nominal    = nominalStr.toLongOrNull() ?: 0L
+
+        if (nomor.isEmpty())    { toast("Masukkan nomor akun $selectedEwallet"); return }
+        if (nomor.length < 10)  { toast("Nomor akun tidak valid"); return }
+        if (nominal < 10_000)   { toast("Minimal penarikan Rp 10.000"); return }
+        if (nominal > saldoTersedia) { toast("Saldo tidak mencukupi"); return }
+
+        setLoading(true)
+        val saldoBaru = saldoTersedia - nominal
+
+        // 1. Kurangi saldo di RTDB (langsung terasa di semua screen)
+        FirebaseManager.rtdbSaldoRef().setValue(saldoBaru)
+            .addOnSuccessListener {
+                // 2. Catat riwayat penarikan ke Firestore
+                saveWithdrawalToFirestore(nominal, nomor)
+            }
+            .addOnFailureListener {
+                setLoading(false)
+                toast("Gagal memproses penarikan, coba lagi")
+            }
+    }
+
+    // ── Firestore: simpan catatan penarikan ──────────────────────────
+    private fun saveWithdrawalToFirestore(nominal: Long, nomor: String) {
+        val data = hashMapOf(
+            "ewallet"   to selectedEwallet,
+            "nomor"     to nomor,
+            "nominal"   to nominal,
+            "status"    to "berhasil",
+            "waktu"     to FirebaseManager.nowString(),
+            "timestamp" to System.currentTimeMillis()
+        )
+        FirebaseManager.fsWithdrawalsCol().add(data)
+            .addOnSuccessListener {
+                setLoading(false)
+                showSuccessDialog(nominal, nomor)
+            }
+            .addOnFailureListener {
+                // Saldo sudah terkurangi di RTDB, hanya pencatatan Firestore gagal
+                // Tetap anggap sukses dari sisi user
+                setLoading(false)
+                showSuccessDialog(nominal, nomor)
+            }
+    }
+
+    private fun showSuccessDialog(nominal: Long, nomor: String) {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Penarikan Berhasil! 🎉")
+            .setMessage(
+                "Rp ${FirebaseManager.formatRupiah(nominal)} berhasil dikirim ke " +
+                "$selectedEwallet ($nomor).\nProses dalam 1×24 jam."
+            )
+            .setPositiveButton("Selesai") { _, _ -> finish() }
+            .setCancelable(false)
+            .show()
+    }
+
+    private fun setLoading(loading: Boolean) {
+        btnKonfirmasi.isEnabled = !loading
+        btnKonfirmasi.text = if (loading) "Memproses…" else "Konfirmasi Penarikan"
     }
 
     private fun updateEwalletUI(selected: LinearLayout) {
@@ -112,9 +175,8 @@ class TarikSaldoActivity : AppCompatActivity() {
             btn.setBackgroundResource(
                 if (isSelected) R.drawable.bg_ewallet_selected else R.drawable.bg_ewallet_normal
             )
-            val label = btn.getChildAt(1) as TextView
-            label.setTextColor(
-                if (isSelected) getColor(R.color.green_primary) else getColor(R.color.text_secondary)
+            (btn.getChildAt(1) as? TextView)?.setTextColor(
+                getColor(if (isSelected) R.color.green_primary else R.color.text_secondary)
             )
         }
     }
@@ -126,57 +188,10 @@ class TarikSaldoActivity : AppCompatActivity() {
                 if (isSelected) R.drawable.bg_nominal_chip_selected else R.drawable.bg_nominal_chip
             )
             chip.setTextColor(
-                if (isSelected) getColor(R.color.surface_white) else getColor(R.color.green_primary)
+                getColor(if (isSelected) R.color.surface_white else R.color.green_primary)
             )
         }
     }
 
-    private fun processWithdraw() {
-        val nomor = etNomorAkun.text.toString().trim()
-        val nominalStr = etNominal.text.toString().trim().replace(".", "").replace(",", "")
-        val nominal = nominalStr.toLongOrNull() ?: 0L
-
-        if (nomor.isEmpty()) { toast("Masukkan nomor akun $selectedEwallet"); return }
-        if (nomor.length < 10) { toast("Nomor akun tidak valid"); return }
-        if (nominal < 10000) { toast("Minimal penarikan Rp 10.000"); return }
-        if (nominal > saldoTersedia) { toast("Saldo tidak mencukupi"); return }
-
-        val uid = auth.currentUser?.uid ?: return
-        val dbRef = FirebaseDatabase.getInstance().getReference("users/$uid")
-
-        // Kurangi saldo
-        val saldoBaru = saldoTersedia - nominal
-        dbRef.child("saldo").setValue(saldoBaru)
-
-        // Catat riwayat penarikan
-        val riwayatRef = dbRef.child("aktivitas").push()
-        val riwayat = mapOf(
-            "judul"     to "-Rp ${formatRupiah(nominal)}",
-            "deskripsi" to "Penarikan ke $selectedEwallet ($nomor)",
-            "status"    to "penarikan",
-            "waktu"     to getCurrentTime(),
-            "timestamp" to System.currentTimeMillis()
-        )
-        riwayatRef.setValue(riwayat)
-
-        showSuccessDialog(nominal, nomor)
-    }
-
-    private fun showSuccessDialog(nominal: Long, nomor: String) {
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("Penarikan Berhasil! 🎉")
-            .setMessage("Rp ${formatRupiah(nominal)} berhasil dikirim ke $selectedEwallet ($nomor).\nProses dalam 1x24 jam.")
-            .setPositiveButton("Selesai") { _, _ -> finish() }
-            .setCancelable(false)
-            .show()
-    }
-
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
-
-    private fun formatRupiah(amount: Long) = String.format("%,d", amount).replace(',', '.')
-
-    private fun getCurrentTime(): String {
-        val sdf = java.text.SimpleDateFormat("dd MMM yyyy HH:mm", java.util.Locale("id"))
-        return sdf.format(java.util.Date())
-    }
 }

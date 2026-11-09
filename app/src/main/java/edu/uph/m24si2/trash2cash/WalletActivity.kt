@@ -12,13 +12,19 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.google.firebase.auth.ktx.auth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
-import com.google.firebase.ktx.Firebase
+import com.google.firebase.firestore.Query
 
+/**
+ * WalletActivity — hybrid load:
+ *
+ * RTDB      → saldo live (listener realtime)
+ * RTDB      → totalReward live (listener realtime)
+ * Firestore → riwayat penarikan untuk hitung totalTarik & tampil 5 transaksi
+ * Firestore → riwayat penarikan digabung dengan aktivitas RTDB (5 terakhir)
+ */
 class WalletActivity : AppCompatActivity() {
 
     private lateinit var tvSaldoWallet: TextView
@@ -28,7 +34,13 @@ class WalletActivity : AppCompatActivity() {
     private lateinit var tvLihatSemua: TextView
     private lateinit var containerTransaksi: LinearLayout
 
-    private val auth = Firebase.auth
+    // RTDB listener
+    private var rtdbStatsListener: ValueEventListener? = null
+
+    // Cache data kedua sumber
+    private var itemsRtdb      = listOf<RiwayatItem>()
+    private var itemsFirestore = listOf<RiwayatItem>()
+    private var totalTarik     = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,130 +51,164 @@ class WalletActivity : AppCompatActivity() {
             insets
         }
 
+        initViews()
+        setupListeners()
+        listenRtdbStats()      // RTDB: saldo + totalReward live
+        loadFirestoreData()    // Firestore: penarikan (one-shot, di-refresh di onResume)
+        loadRtdbAktivitas()    // RTDB: aktivitas botol 5 terakhir
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Refresh Firestore setiap kembali dari TarikSaldo
+        loadFirestoreData()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        rtdbStatsListener?.let { FirebaseManager.rtdbUserRef().removeEventListener(it) }
+    }
+
+    private fun initViews() {
         tvSaldoWallet       = findViewById(R.id.tvSaldoWallet)
         tvTotalRewardWallet = findViewById(R.id.tvTotalRewardWallet)
         tvTotalTarik        = findViewById(R.id.tvTotalTarik)
         btnTarikSaldo       = findViewById(R.id.btnTarikSaldo)
         tvLihatSemua        = findViewById(R.id.tvLihatSemua)
         containerTransaksi  = findViewById(R.id.containerTransaksi)
+    }
 
+    private fun setupListeners() {
         findViewById<View>(R.id.btnBack).setOnClickListener { finish() }
 
         btnTarikSaldo.setOnClickListener {
             startActivity(Intent(this, TarikSaldoActivity::class.java))
         }
-
         tvLihatSemua.setOnClickListener {
             startActivity(Intent(this, RiwayatActivity::class.java))
         }
-
-        // E-wallet shortcut semuanya buka TarikSaldo
+        // Shortcut e-wallet semuanya buka TarikSaldo
         listOf(R.id.wDana, R.id.wOvo, R.id.wGopay, R.id.wShopeepay).forEach { id ->
             findViewById<LinearLayout>(id).setOnClickListener {
                 startActivity(Intent(this, TarikSaldoActivity::class.java))
             }
         }
-
-        loadData()
     }
 
-    override fun onResume() {
-        super.onResume()
-        loadData() // Refresh setiap kali kembali dari TarikSaldo
-    }
-
-    private fun loadData() {
-        val uid = auth.currentUser?.uid ?: return
-        val dbRef = FirebaseDatabase.getInstance().getReference("users/$uid")
-
-        dbRef.addListenerForSingleValueEvent(object : ValueEventListener {
+    // ── RTDB: saldo + totalReward live ──────────────────────────────
+    private fun listenRtdbStats() {
+        rtdbStatsListener = object : ValueEventListener {
             override fun onDataChange(snap: DataSnapshot) {
-                val saldo       = snap.child("saldo").getValue(Long::class.java) ?: 0L
-                val totalReward = snap.child("totalReward").getValue(Long::class.java) ?: 0L
+                val saldo       = (snap.child("saldo").value as? Number)?.toLong() ?: 0L
+                val totalReward = (snap.child("totalReward").value as? Number)?.toLong() ?: 0L
 
-                tvSaldoWallet.text       = "Rp ${fmt(saldo)}"
-                tvTotalRewardWallet.text = "Rp ${fmt(totalReward)}"
-
-                // Hitung total penarikan dari aktivitas
-                var totalTarik = 0L
-                snap.child("aktivitas").children.forEach { child ->
-                    if (child.child("status").getValue(String::class.java) == "penarikan") {
-                        val judul = child.child("judul").getValue(String::class.java) ?: ""
-                        val angka = judul.replace("-Rp", "").replace(".", "").trim().toLongOrNull() ?: 0L
-                        totalTarik += angka
-                    }
-                }
-                tvTotalTarik.text = "Rp ${fmt(totalTarik)}"
-
-                // Render 5 transaksi terakhir
-                loadRecentTransactions(uid)
+                tvSaldoWallet.text       = "Rp ${FirebaseManager.formatRupiah(saldo)}"
+                tvTotalRewardWallet.text = "Rp ${FirebaseManager.formatRupiah(totalReward)}"
             }
             override fun onCancelled(e: DatabaseError) {}
-        })
+        }
+        FirebaseManager.rtdbUserRef().addValueEventListener(rtdbStatsListener!!)
     }
 
-    private fun loadRecentTransactions(uid: String) {
-        val ref = FirebaseDatabase.getInstance()
-            .getReference("users/$uid/aktivitas")
+    // ── Firestore: penarikan → hitung totalTarik + cache items ──────
+    private fun loadFirestoreData() {
+        FirebaseManager.fsWithdrawalsCol()
+            .orderBy("timestamp", Query.Direction.DESCENDING)
+            .get()
+            .addOnSuccessListener { snap ->
+                var total = 0L
+                val list  = snap.documents.mapNotNull { doc ->
+                    val nominal = doc.getLong("nominal") ?: return@mapNotNull null
+                    val ewallet = doc.getString("ewallet") ?: ""
+                    val nomor   = doc.getString("nomor") ?: ""
+                    total += nominal
+                    RiwayatItem(
+                        judul     = "-Rp ${FirebaseManager.formatRupiah(nominal)}",
+                        deskripsi = "Penarikan ke $ewallet ($nomor)",
+                        waktu     = doc.getString("waktu") ?: "",
+                        status    = "penarikan",
+                        timestamp = doc.getLong("timestamp") ?: 0L
+                    )
+                }
+                totalTarik     = total
+                itemsFirestore = list
+                tvTotalTarik.text = "Rp ${FirebaseManager.formatRupiah(totalTarik)}"
+                renderTransaksi()
+            }
+    }
 
-        ref.orderByChild("timestamp").limitToLast(5)
+    // ── RTDB: 5 aktivitas botol terbaru ─────────────────────────────
+    private fun loadRtdbAktivitas() {
+        FirebaseManager.rtdbAktivitasRef()
+            .orderByChild("timestamp")
+            .limitToLast(10)
             .addListenerForSingleValueEvent(object : ValueEventListener {
                 override fun onDataChange(snap: DataSnapshot) {
-                    containerTransaksi.removeAllViews()
-                    val list = mutableListOf<DataSnapshot>()
-                    snap.children.forEach { list.add(0, it) }
-
-                    val items = if (list.isEmpty()) getDummyTransaksi() else list.map { child ->
-                        Triple(
-                            child.child("judul").getValue(String::class.java) ?: "",
-                            child.child("deskripsi").getValue(String::class.java) ?: "",
-                            child.child("status").getValue(String::class.java) ?: "diterima"
-                        )
+                    val list = mutableListOf<RiwayatItem>()
+                    snap.children.forEach { child ->
+                        list.add(0, RiwayatItem(
+                            judul     = child.child("judul").getValue(String::class.java) ?: "",
+                            deskripsi = child.child("deskripsi").getValue(String::class.java) ?: "",
+                            waktu     = child.child("waktu").getValue(String::class.java) ?: "",
+                            status    = child.child("status").getValue(String::class.java) ?: "diterima",
+                            timestamp = child.child("timestamp").getValue(Long::class.java) ?: 0L
+                        ))
                     }
-
-                    val inflater = LayoutInflater.from(this@WalletActivity)
-                    items.take(5).forEach { (judul, desc, status) ->
-                        val view = inflater.inflate(R.layout.item_riwayat, containerTransaksi, false)
-                        view.findViewById<TextView>(R.id.tvJudul).apply {
-                            text = judul
-                            setTextColor(getColor(when (status) {
-                                "ditolak"   -> R.color.error_red
-                                "penarikan" -> android.R.color.holo_orange_dark
-                                else        -> R.color.green_primary
-                            }))
-                        }
-                        view.findViewById<TextView>(R.id.tvDeskripsi).text = desc
-                        val iconContainer = view.findViewById<FrameLayout>(R.id.iconContainer)
-                        val ivIcon = view.findViewById<ImageView>(R.id.ivIcon)
-                        when (status) {
-                            "ditolak" -> {
-                                iconContainer.setBackgroundResource(R.drawable.bg_icon_red_circle)
-                                ivIcon.setColorFilter(getColor(R.color.error_red))
-                            }
-                            "penarikan" -> {
-                                iconContainer.setBackgroundResource(R.drawable.bg_icon_orange_circle)
-                                ivIcon.setImageResource(R.drawable.ic_withdraw)
-                                ivIcon.setColorFilter(getColor(android.R.color.holo_orange_dark))
-                            }
-                            else -> {
-                                iconContainer.setBackgroundResource(R.drawable.bg_icon_green_circle)
-                                ivIcon.clearColorFilter()
-                            }
-                        }
-                        containerTransaksi.addView(view)
-                    }
+                    itemsRtdb = list
+                    renderTransaksi()
                 }
-                override fun onCancelled(e: DatabaseError) {}
+                override fun onCancelled(e: DatabaseError) { renderTransaksi() }
             })
     }
 
-    private fun getDummyTransaksi() = listOf(
-        Triple("+Rp500",    "Botol PET diterima",  "diterima"),
-        Triple("+Rp500",    "Botol PET diterima",  "diterima"),
-        Triple("-Rp10.000", "Penarikan ke GoPay",  "penarikan"),
-        Triple("Ditolak",   "Bukan botol plastik", "ditolak"),
-        Triple("+Rp500",    "Botol PET diterima",  "diterima")
-    )
+    // ── Gabungkan & render 5 transaksi terbaru ───────────────────────
+    private fun renderTransaksi() {
+        val merged = (itemsRtdb + itemsFirestore)
+            .sortedByDescending { it.timestamp }
+            .ifEmpty { getDummyTransaksi() }
 
-    private fun fmt(amount: Long) = String.format("%,d", amount).replace(',', '.')
+        containerTransaksi.removeAllViews()
+        val inflater = LayoutInflater.from(this)
+
+        merged.take(5).forEach { item ->
+            val view          = inflater.inflate(R.layout.item_riwayat, containerTransaksi, false)
+            val tvJudul       = view.findViewById<TextView>(R.id.tvJudul)
+            val tvDeskripsi   = view.findViewById<TextView>(R.id.tvDeskripsi)
+            val tvWaktu       = view.findViewById<TextView>(R.id.tvWaktu)
+            val iconContainer = view.findViewById<FrameLayout>(R.id.iconContainer)
+            val ivIcon        = view.findViewById<ImageView>(R.id.ivIcon)
+
+            tvJudul.text     = item.judul
+            tvDeskripsi.text = item.deskripsi
+            tvWaktu.text     = item.waktu
+
+            when (item.status) {
+                "ditolak" -> {
+                    tvJudul.setTextColor(getColor(R.color.error_red))
+                    iconContainer.setBackgroundResource(R.drawable.bg_icon_red_circle)
+                    ivIcon.setColorFilter(getColor(R.color.error_red))
+                }
+                "penarikan" -> {
+                    tvJudul.setTextColor(getColor(android.R.color.holo_orange_dark))
+                    iconContainer.setBackgroundResource(R.drawable.bg_icon_orange_circle)
+                    ivIcon.setImageResource(R.drawable.ic_withdraw)
+                    ivIcon.setColorFilter(getColor(android.R.color.holo_orange_dark))
+                }
+                else -> {
+                    tvJudul.setTextColor(getColor(R.color.green_primary))
+                    iconContainer.setBackgroundResource(R.drawable.bg_icon_green_circle)
+                    ivIcon.clearColorFilter()
+                }
+            }
+            containerTransaksi.addView(view)
+        }
+    }
+
+    private fun getDummyTransaksi() = listOf(
+        RiwayatItem("+Rp500",    "Botol PET diterima",  "Hari ini 14:32",    "diterima",  System.currentTimeMillis()),
+        RiwayatItem("+Rp500",    "Botol PET diterima",  "Hari ini 13:10",    "diterima",  System.currentTimeMillis() - 5_400_000),
+        RiwayatItem("-Rp10.000", "Penarikan ke GoPay",  "12 Des 2024 09:21", "penarikan", System.currentTimeMillis() - 172_800_000),
+        RiwayatItem("Ditolak",   "Bukan botol plastik", "Kemarin 16:30",     "ditolak",   System.currentTimeMillis() - 64_800_000),
+        RiwayatItem("+Rp500",    "Botol PET diterima",  "12 Des 2024 10:15", "diterima",  System.currentTimeMillis() - 180_000_000)
+    )
 }
