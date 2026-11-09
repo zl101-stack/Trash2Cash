@@ -24,7 +24,7 @@
             android:layout_height="36dp"
             android:contentDescription="Kembali"
             android:src="@drawable/ic_arrow_back"
-            android:tint="#FFFFFF"
+            app:tint="#FFFFFF"
             android:clickable="true"
             android:focusable="true"/>
 

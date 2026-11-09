@@ -30,7 +30,7 @@
             android:layout_marginStart="16dp" android:layout_marginTop="48dp"
             android:contentDescription="Kembali"
             android:src="@drawable/ic_arrow_back"
-            android:tint="#FFFFFF"
+            app:tint="#FFFFFF"
             android:clickable="true" android:focusable="true"/>
 
         <!-- Title -->
@@ -58,7 +58,7 @@
                 android:layout_gravity="center"
                 android:contentDescription="avatar"
                 android:src="@drawable/ic_nav_profile"
-                android:tint="@color/green_primary"/>
+                app:tint="@color/green_primary"/>
 
             <!-- Edit badge -->
             <FrameLayout
@@ -72,7 +72,7 @@
                     android:layout_gravity="center"
                     android:contentDescription="edit"
                     android:src="@drawable/ic_edit"
-                    android:tint="#FFFFFF"/>
+                    app:tint="#FFFFFF"/>
             </FrameLayout>
         </FrameLayout>
     </FrameLayout>
@@ -350,7 +350,7 @@
                                 android:layout_gravity="center"
                                 android:contentDescription="notif"
                                 android:src="@drawable/ic_notification"
-                                android:tint="@color/green_primary"/>
+                                app:tint="@color/green_primary"/>
                         </FrameLayout>
 
                         <TextView

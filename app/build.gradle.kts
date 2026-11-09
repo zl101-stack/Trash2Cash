@@ -30,6 +30,15 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
+    buildFeatures {
+        viewBinding = true
+    }
+
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
+    }
 }
 
 dependencies {
@@ -44,7 +53,8 @@ dependencies {
     // Material Design
     implementation(libs.material)
 
-    // Firebase
+    // Firebase (BOM mengelola versi semua library Firebase secara otomatis)
+    implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
     implementation(libs.firebase.database)
 

@@ -1,6 +1,6 @@
 [versions]
-agp                  = "9.3.3"
-kotlin               = "2.4.21"
+agp                  = "9.2.1"
+kotlin               = "2.0.21"
 coreKtx              = "1.16.0"
 junit                = "4.13.2"
 junitVersion         = "1.2.1"
@@ -14,6 +14,7 @@ cardview             = "1.0.0"
 googleGmsGoogleServices = "4.4.2"
 firebaseAuth         = "23.2.0"
 firebaseDatabase     = "21.0.0"
+firebaseBom          = "33.9.0"
 
 [libraries]
 # AndroidX Core
@@ -28,8 +29,9 @@ androidx-cardview          = { group = "androidx.cardview",       name = "cardvi
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 
 # Firebase
-firebase-auth     = { group = "com.google.firebase", name = "firebase-auth",     version.ref = "firebaseAuth" }
-firebase-database = { group = "com.google.firebase", name = "firebase-database", version.ref = "firebaseDatabase" }
+firebase-bom      = { group = "com.google.firebase", name = "firebase-bom",       version.ref = "firebaseBom" }
+firebase-auth     = { group = "com.google.firebase", name = "firebase-auth" }
+firebase-database = { group = "com.google.firebase", name = "firebase-database" }
 
 # Test
 junit                  = { group = "junit",              name = "junit",          version.ref = "junit" }
