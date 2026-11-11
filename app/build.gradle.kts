@@ -53,12 +53,7 @@ dependencies {
     // Material Design
     implementation(libs.material)
 
-<<<<<<< Updated upstream
-    // Firebase (BOM mengelola versi semua library Firebase secara otomatis)
-    implementation(platform(libs.firebase.bom))
-=======
     // Firebase Auth
->>>>>>> Stashed changes
     implementation(libs.firebase.auth)
     // Firebase Realtime Database — data live dari ESP32
     implementation(libs.firebase.database)
